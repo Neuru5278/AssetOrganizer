@@ -9,7 +9,7 @@ on:
   workflow_dispatch: 
 
 env:
-  triggerUpdate: ${{ false }}
+  triggerUpdate: ${{ true }}
   repoOwner: "Neuru5278"
   repoName: "main-vpm-repos"
   repoBranch: "main"

@@ -96,6 +96,4 @@ jobs:
         if: ${{ env.triggerRepoUpdate == 'true' }}
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          repository: Neuru5278/main-vpm-repos
-          event-type: update-listing
+          event-type: trigger-repo-update
