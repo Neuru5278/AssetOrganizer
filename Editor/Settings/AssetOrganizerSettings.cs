@@ -39,7 +39,7 @@ namespace com.neuru5278.assetorganizer.Settings
         public Rule FindRuleFor(Object asset)
         {
             var assetType = AssetDatabase.GetMainAssetTypeAtPath(AssetDatabase.GetAssetPath(asset));
-            return rules.Find(r => r.type.GetSystemType() == assetType) ?? defaultRule;
+            return rules.Find(r => r.type.SystemType == assetType) ?? defaultRule;
         }
 
         public void ResetToDefaults()
