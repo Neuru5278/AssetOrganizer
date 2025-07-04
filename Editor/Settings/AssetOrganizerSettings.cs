@@ -7,6 +7,13 @@ using UnityEditor;
 
 namespace com.neuru5278.assetorganizer.Settings
 {
+    [System.Serializable]
+    public class Rule
+    {
+        public string folder = "Misc";
+        public ManageType type = new ManageType(typeof(Object));
+    }
+
     [CreateAssetMenu(fileName = "AssetOrganizerSettings", menuName = "Asset Organizer/Settings")]
     public class AssetOrganizerSettings : ScriptableObject
     {
