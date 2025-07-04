@@ -1,5 +1,6 @@
 {
-  "name": "com.neuru5278.assetorganizer.Editor",
+  "name": "com.neuru5278.assetorganizer.editor",
+  "rootNamespace": "com.neuru5278.assetorganizer",
   "references": [],
   "includePlatforms": ["Editor"],
   "excludePlatforms": [],
