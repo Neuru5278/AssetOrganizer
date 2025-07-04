@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Linq;
 using com.neuru5278.assetorganizer.Data;
 using UnityEditor.Animations;
 using UnityEngine;
+using UnityEditor;
 
 namespace com.neuru5278.assetorganizer.Settings
 {
@@ -20,13 +22,23 @@ namespace com.neuru5278.assetorganizer.Settings
         public bool deleteEmptyFolders = true;
         
         [Header("Suffixes")]
-        public string copySuffix = "";
-        public string folderSuffix = "_copy";
+        public string copySuffix = "_copy";
+        public string folderSuffix = "_Assets";
         
+        public List<Rule> rules = new List<Rule>();
+
+        public Rule defaultRule => rules.LastOrDefault();
+        
+        public Rule FindRuleFor(Object asset)
+        {
+            var assetType = AssetDatabase.GetMainAssetTypeAtPath(AssetDatabase.GetAssetPath(asset));
+            return rules.Find(r => r.type.GetSystemType() == assetType) ?? defaultRule;
+        }
+
         public void ResetToDefaults()
         {
-            copySuffix = "";
-            folderSuffix = "_copy";
+            copySuffix = "_copy";
+            folderSuffix = "_Assets";
 
             specialFolders = new List<CustomFolder>
             {

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -14,6 +15,9 @@ namespace com.neuru5278.assetorganizer.Data
         public readonly GUIContent icon;
         public ManageAction action;
         public ManageType associatedType;
+
+        public string fileName => Path.GetFileNameWithoutExtension(path);
+        public string extension => Path.GetExtension(path);
 
         public DependencyAsset(string path)
         {

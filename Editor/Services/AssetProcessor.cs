@@ -165,7 +165,7 @@ namespace com.neuru5278.assetorganizer.Services
 
         private string GetNewPathByType(DependencyAsset asset, string destinationRoot)
         {
-            var rule = _settings.FindRuleFor(asset.type) ?? _settings.defaultRule;
+            var rule = _settings.FindRuleFor(asset.asset) ?? _settings.defaultRule;
             string newDir = Path.Combine(destinationRoot, rule.folder).Replace('\\', '/');
             return Path.Combine(newDir, asset.fileName + _settings.copySuffix + asset.extension).Replace('\\', '/');
         }
