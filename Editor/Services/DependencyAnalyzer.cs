@@ -18,21 +18,14 @@ namespace com.neuru5278.assetorganizer.Services
             _settings = settings;
         }
 
-        public List<DependencyAsset> GetDependencies(Object mainAsset, out string initialPath)
+        public List<DependencyAsset> RunAnalysis(Object mainAsset)
         {
-            initialPath = AssetDatabase.GetAssetPath(mainAsset);
-            bool isFolder = AssetDatabase.IsValidFolder(initialPath);
-            
-            string[] assetPaths = isFolder 
-                ? GetAssetPathsInFolder(initialPath).ToArray() 
-                : AssetDatabase.GetDependencies(initialPath);
-            
-            var dependencyAssets = assetPaths.Select(p => new DependencyAsset(p)).ToList();
+            string path = AssetDatabase.GetAssetPath(mainAsset);
+            if (string.IsNullOrEmpty(path)) return new List<DependencyAsset>();
 
-            if (!isFolder)
-            {
-                initialPath = Path.GetDirectoryName(initialPath)?.Replace('\\', '/');
-            }
+            string[] dependencies = AssetDatabase.GetDependencies(path, true);
+            
+            var dependencyAssets = dependencies.Select(p => new DependencyAsset(p)).ToList();
 
             ApplyActionsAndSort(dependencyAssets);
             

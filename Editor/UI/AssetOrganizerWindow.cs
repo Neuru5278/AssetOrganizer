@@ -28,12 +28,19 @@ namespace com.neuru5278.assetorganizer
 
         private void OnEnable()
         {
-            _settings = AssetOrganizerSettings.LoadSettings();
+            _settings = SettingsManager.GetSettings();
             _organizerTabDrawer = new OrganizerTabDrawer();
         }
 
         private void OnGUI()
         {
+            if (_settings == null)
+            {
+                EditorGUILayout.HelpBox("Settings asset could not be loaded. Please check the console for errors.", MessageType.Error);
+                if(GUILayout.Button("Retry Loading Settings")) OnEnable();
+                return;
+            }
+            
             var userActions = _organizerTabDrawer.Draw(ref _mainAsset, ref _destinationPath, _settings, _assets);
 
             if (userActions.MainAssetChanged)
@@ -45,6 +52,10 @@ namespace com.neuru5278.assetorganizer
                     {
                         _destinationPath = Path.GetDirectoryName(_destinationPath)?.Replace('\\', '/');
                     }
+                }
+                else
+                {
+                    _destinationPath = "Assets";
                 }
                 _assets = null;
             }
@@ -58,12 +69,19 @@ namespace com.neuru5278.assetorganizer
             {
                 var processor = new AssetProcessor(_settings);
                 processor.ProcessAssets(_assets, _destinationPath, false);
+                _assets = null;
             }
             
             if (userActions.ProcessByStructure)
             {
                 var processor = new AssetProcessor(_settings);
                 processor.ProcessAssets(_assets, _destinationPath, true);
+                _assets = null;
+            }
+            
+            if (GUI.changed)
+            {
+                EditorUtility.SetDirty(_settings);
             }
         }
 
@@ -71,7 +89,7 @@ namespace com.neuru5278.assetorganizer
         {
             if (!_mainAsset) return;
             var analyzer = new DependencyAnalyzer(_settings);
-            _assets = analyzer.GetDependencyAssets(_mainAsset);
+            _assets = analyzer.RunAnalysis(_mainAsset);
         }
     }
 } 
