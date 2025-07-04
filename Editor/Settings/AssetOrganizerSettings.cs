@@ -11,7 +11,7 @@ namespace com.neuru5278.assetorganizer.Settings
     public class Rule
     {
         public string folder = "Misc";
-        public ManageType type = new ManageType(typeof(Object));
+        public ManageType type = new ManageType();
     }
 
     [CreateAssetMenu(fileName = "AssetOrganizerSettings", menuName = "Asset Organizer/Settings")]
@@ -36,10 +36,9 @@ namespace com.neuru5278.assetorganizer.Settings
 
         public Rule defaultRule => rules.LastOrDefault();
         
-        public Rule FindRuleFor(Object asset)
+        public Rule FindRuleFor(DependencyAsset asset)
         {
-            var assetType = AssetDatabase.GetMainAssetTypeAtPath(AssetDatabase.GetAssetPath(asset));
-            return rules.Find(r => r.type.SystemType == assetType) ?? defaultRule;
+            return rules.Find(r => r.type.IsAppliedTo(asset)) ?? defaultRule;
         }
 
         public void ResetToDefaults()

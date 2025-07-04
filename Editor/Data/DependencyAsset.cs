@@ -8,11 +8,11 @@ namespace com.neuru5278.assetorganizer.Data
 {
     public class DependencyAsset
     {
-        public readonly Object asset;
-        public readonly string path;
         public readonly string guid;
-        public readonly Type type;
-        public readonly GUIContent icon;
+        public readonly string path;
+        public readonly Object asset;
+        public readonly Texture icon;
+        public readonly System.Type type;
         public ManageAction action;
         public ManageType associatedType;
 
@@ -22,11 +22,11 @@ namespace com.neuru5278.assetorganizer.Data
         public DependencyAsset(string path)
         {
             this.path = path;
-            asset = AssetDatabase.LoadAssetAtPath<Object>(path);
             guid = AssetDatabase.AssetPathToGUID(path);
+            asset = AssetDatabase.LoadAssetAtPath<Object>(path);
+            icon = AssetDatabase.GetCachedIcon(path);
+            type = asset ? asset.GetType() : typeof(Object);
             action = ManageAction.Skip;
-            type = asset.GetType();
-            icon = new GUIContent(AssetPreview.GetMiniTypeThumbnail(type), type.Name);
         }
     }
 } 
