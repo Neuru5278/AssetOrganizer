@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using com.neuru5278.assetorganizer.Data;
 using UnityEditor.Animations;
 using UnityEngine;
+using UnityEngine.Rendering;
 using VRC.SDK3.Avatars.ScriptableObjects;
 
 namespace com.neuru5278.assetorganizer.Settings
@@ -41,7 +42,7 @@ namespace com.neuru5278.assetorganizer.Settings
             manageTypes = new ManageType[]
             {
                 new ManageType { actionIndex = 0, name = "Animations", typeNames = new[] { typeof(AnimationClip).AssemblyQualifiedName, typeof(BlendTree).AssemblyQualifiedName }, extensions = new string[0] },
-                new ManageType { actionIndex = 1, name = "Controllers", typeNames = new[] { typeof(AnimatorController).AssemblyQualifiedName, typeof(UnityEditor.AnimatorOverrideController).AssemblyQualifiedName }, extensions = new string[0] },
+                new ManageType { actionIndex = 1, name = "Controllers", typeNames = new[] { typeof(AnimatorController).AssemblyQualifiedName, typeof(AnimatorOverrideController).AssemblyQualifiedName }, extensions = new string[0] },
                 new ManageType { actionIndex = 2, name = "Textures", typeNames = new[] { typeof(Texture).AssemblyQualifiedName, typeof(Texture2D).AssemblyQualifiedName, typeof(RenderTexture).AssemblyQualifiedName, typeof(Cubemap).AssemblyQualifiedName }, extensions = new string[0] },
                 new ManageType { actionIndex = 3, name = "Materials", typeNames = new[] { typeof(Material).AssemblyQualifiedName }, extensions = new string[0] },
                 new ManageType { actionIndex = 4, name = "Models", typeNames = new[] { typeof(Mesh).AssemblyQualifiedName }, extensions = new[] { ".fbx", ".obj", ".dae", ".3ds", ".dxf", ".blend" } },
