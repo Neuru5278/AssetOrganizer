@@ -70,7 +70,6 @@ namespace com.neuru5278.assetorganizer.Settings
             AddRule("Scripts", ManageAction.Skip, new[] { typeof(UnityEditor.MonoScript).AssemblyQualifiedName }, new[] { ".dll", ".cs" });
             AddRule("Fonts", ManageAction.Copy, new[] { typeof(Font).AssemblyQualifiedName });
             AddRule("Physics", ManageAction.Copy, new[] { typeof(PhysicMaterial).AssemblyQualifiedName, typeof(PhysicsMaterial2D).AssemblyQualifiedName });
-
             AddRule("Other", ManageAction.Copy, new[] { typeof(ScriptableObject).AssemblyQualifiedName });
 
             // Assign the generated lists back to the arrays

@@ -79,20 +79,11 @@ namespace com.neuru5278.assetorganizer.UI
 
         private void DrawOrganizerTab()
         {
-            // --- Input Fields ---
-            EditorGUI.BeginChangeCheck();
-            _mainAsset = EditorGUILayout.ObjectField("Main Asset", _mainAsset, typeof(Object), false);
-            if (EditorGUI.EndChangeCheck())
-            {
-                HandleMainAssetChange();
-            }
+            // The OrganizerTabDrawer is now responsible for drawing all fields.
+            // We pass the state to it and handle the returned actions.
+            var actions = _organizerTabDrawer.Draw(ref _mainAsset, ref _destinationPath, _settings, _dependencyAssets);
             
-            _destinationPath = AssetOrganizerGUI.AssetFolderPath(_destinationPath, "Destination Folder");
-            
-            AssetOrganizerGUI.DrawSeparator();
-
-            // --- Asset List and Actions ---
-            var actions = _organizerTabDrawer.Draw(_mainAsset, _dependencyAssets, _destinationPath);
+            if(actions.MainAssetChanged) HandleMainAssetChange();
             
             HandleUserActions(actions);
         }

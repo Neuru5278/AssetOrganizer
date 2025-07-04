@@ -43,22 +43,33 @@ namespace com.neuru5278.assetorganizer.Services
         {
             foreach (var asset in assets)
             {
+                // 1. Apply type-based action first as a default.
                 if (!TrySetActionFromType(asset))
                 {
-                    asset.associatedType = _settings.manageTypes.Last();
+                    // If no type matches, assign the 'Other' type.
+                    // Assuming 'Other' is the last one in the list.
+                    var otherType = _settings.manageTypes.LastOrDefault();
+                    if (otherType.name == "Other")
+                    {
+                        asset.associatedType = otherType;
+                        asset.action = _settings.typeActions[otherType.actionIndex];
+                    }
                 }
-
+                
+                // 2. Override with folder-based action if a rule matches (higher priority).
+                string[] subFolders = asset.path.Split('/');
                 foreach (var folderRule in _settings.specialFolders)
                 {
                     if (!folderRule.active) continue;
-                    if (!asset.path.Contains($"/{folderRule.name}/")) continue;
-
-                    asset.action = folderRule.action;
-                    break;
+                    if (subFolders.Contains(folderRule.name))
+                    {
+                        asset.action = folderRule.action;
+                        break; 
+                    }
                 }
             }
             
-            // Sort logic will be applied here based on _settings.sortByOption
+            // 3. Sort the final list.
             switch (_settings.sortByOption)
             {
                 case SortOptions.AlphabeticalPath:

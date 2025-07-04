@@ -36,7 +36,7 @@ namespace com.neuru5278.assetorganizer.Services
         private void ProcessAssets(List<DependencyAsset> assets, string finalDestPath, List<string> createdFolders, System.Func<DependencyAsset, string, string> getNewPathFunc)
         {
             var affectedFolders = new HashSet<string>();
-            var assetPathMap = new Dictionary<string, string>();
+            var copiedAssetMap = new Dictionary<string, (string newGuid, string newPath)>();
 
             try
             {
@@ -58,10 +58,14 @@ namespace com.neuru5278.assetorganizer.Services
                     else if (asset.action == ManageAction.Copy)
                     {
                         AssetDatabase.CopyAsset(asset.path, newPath);
-                        assetPathMap[asset.guid] = AssetDatabase.AssetPathToGUID(newPath);
+                        string newGuid = AssetDatabase.AssetPathToGUID(newPath);
+                        if (!string.IsNullOrEmpty(newGuid))
+                        {
+                            copiedAssetMap[asset.guid] = (newGuid, newPath);
+                        }
                     }
                 }
-                RemapGuids(assetPathMap);
+                RemapGuids(copiedAssetMap);
             }
             finally
             {
@@ -144,28 +148,35 @@ namespace com.neuru5278.assetorganizer.Services
             return Path.GetFileName(asset.path);
         }
 
-        private void RemapGuids(Dictionary<string, string> guidMap)
+        private void RemapGuids(Dictionary<string, (string newGuid, string newPath)> copiedAssetMap)
         {
-            if (guidMap.Count == 0) return;
-
-            var allAssetPaths = AssetDatabase.GetAllAssetPaths();
-            var assetsToRema = allAssetPaths.Where(p => p.EndsWith(".asset") || p.EndsWith(".prefab") || p.EndsWith(".unity") || p.EndsWith(".mat")).ToArray();
-
+            if (copiedAssetMap.Count == 0) return;
+            
+            var copiedAssetPaths = copiedAssetMap.Values.Select(v => v.newPath).ToArray();
+            
             try
             {
                 AssetDatabase.StartAssetEditing();
-                for (int i = 0; i < assetsToRema.Length; i++)
+                for (int i = 0; i < copiedAssetPaths.Length; i++)
                 {
-                    var assetPath = assetsToRema[i];
-                    EditorUtility.DisplayProgressBar("Remapping GUIDs", $"Processing {Path.GetFileName(assetPath)}...", (float)i / assetsToRema.Length);
+                    var assetPath = copiedAssetPaths[i];
+                    if (!assetPath.EndsWith(".asset") && !assetPath.EndsWith(".prefab") && !assetPath.EndsWith(".unity") && !assetPath.EndsWith(".mat"))
+                    {
+                        continue;
+                    }
+
+                    EditorUtility.DisplayProgressBar("Remapping GUIDs", $"Processing {Path.GetFileName(assetPath)}...", (float)i / copiedAssetPaths.Length);
                     
                     string content = File.ReadAllText(assetPath, Encoding);
                     bool changed = false;
-                    foreach (var kvp in guidMap)
+                    
+                    foreach (var kvp in copiedAssetMap)
                     {
-                        if (content.Contains(kvp.Key))
+                        string oldGuid = kvp.Key;
+                        string newGuid = kvp.Value.newGuid;
+                        if (content.Contains(oldGuid))
                         {
-                            content = content.Replace(kvp.Key, kvp.Value);
+                            content = content.Replace(oldGuid, newGuid);
                             changed = true;
                         }
                     }
