@@ -21,171 +21,106 @@ namespace com.neuru5278.assetorganizer.Services
             _settings = settings;
         }
 
-        public void ProcessByType(List<DependencyAsset> assets, string destinationPath)
+        public void ProcessByType(List<DependencyAsset> assets, string destinationRoot)
         {
-            string finalDestPath = PrepareDestinationPath(destinationPath);
-            var createdFolders = CreateTargetFoldersByType(finalDestPath, assets);
-            ProcessAssets(assets, finalDestPath, createdFolders, (a, p) => GetNewPathByType(a, p));
+            Process(assets, (asset, root) => GetNewPathByType(asset, root), destinationRoot);
         }
 
-        public void ProcessByStructure(List<DependencyAsset> assets, string mainAssetPath, string destinationPath)
+        public void ProcessByStructure(List<DependencyAsset> assets, string sourceRoot, string destinationRoot)
         {
-            string finalDestPath = PrepareDestinationPath(destinationPath);
-            var createdFolders = CreateTargetFoldersByStructure(finalDestPath, assets, mainAssetPath);
-            ProcessAssets(assets, finalDestPath, createdFolders, (a, p) => GetNewPathByStructure(a, p, mainAssetPath));
+            Process(assets, (asset, root) => GetNewPathByStructure(asset, sourceRoot, root), destinationRoot);
         }
 
-        public void ProcessAssets(List<DependencyAsset> assets, string destinationRoot, bool keepStructure)
+        private void Process(List<DependencyAsset> assets, System.Func<DependencyAsset, string, string> getNewPathFunc, string destinationRoot)
         {
             _guidMap.Clear();
             var copiedAssets = new List<string>();
+            var affectedFolders = new HashSet<string>();
 
             try
             {
                 AssetDatabase.StartAssetEditing();
-                for (int i = 0; i < assets.Count; i++)
-                {
-                    var asset = assets[i];
-                    EditorUtility.DisplayProgressBar("Organizing Assets", $"Processing {asset.asset.name}...", (float)i / assets.Count);
+                
+                var createdFolders = CreateRequiredFolders(assets, destinationRoot, getNewPathFunc);
+                affectedFolders.UnionWith(createdFolders);
 
+                foreach (var asset in assets)
+                {
                     if (asset.action == ManageAction.Skip) continue;
 
-                    string newPath = GetNewPathByType(asset, destinationRoot);
+                    string newPath = getNewPathFunc(asset, destinationRoot);
 
+                    if (string.IsNullOrEmpty(newPath))
+                    {
+                        Debug.LogWarning($"Could not determine new path for asset: {asset.path}. Skipping.");
+                        continue;
+                    }
+                    
+                    string oldPath = asset.path;
                     if (asset.action == ManageAction.Move)
                     {
-                        copiedAssets.Add(asset.path);
-                        AssetDatabase.MoveAsset(asset.path, newPath);
+                        string dir = Path.GetDirectoryName(oldPath);
+                        if(dir != null) affectedFolders.Add(dir);
+                        AssetDatabase.MoveAsset(oldPath, newPath);
+                        _guidMap[asset.guid] = asset.guid; // GUID doesn't change on move
+                        copiedAssets.Add(newPath);
                     }
                     else if (asset.action == ManageAction.Copy)
                     {
-                        copiedAssets.Add(newPath);
-                        AssetDatabase.CopyAsset(asset.path, newPath);
+                        AssetDatabase.CopyAsset(oldPath, newPath);
                         string newGuid = AssetDatabase.AssetPathToGUID(newPath);
                         if (!string.IsNullOrEmpty(newGuid))
                         {
                             _guidMap[asset.guid] = newGuid;
                         }
+                        copiedAssets.Add(newPath);
                     }
                 }
-                RemapGuids(copiedAssets);
             }
             finally
             {
-                EditorUtility.ClearProgressBar();
                 AssetDatabase.StopAssetEditing();
-                AssetDatabase.Refresh();
             }
 
+            RemapGuids(copiedAssets);
+            
             if (_settings.deleteEmptyFolders)
             {
-                CleanupEmptyFolders(copiedAssets);
+                CleanupEmptyFolders(affectedFolders);
             }
 
-            EditorGUIUtility.PingObject(AssetDatabase.LoadMainAssetAtPath(destinationRoot));
+            EditorGUIUtility.PingObject(AssetDatabase.LoadAssetAtPath<Object>(destinationRoot));
         }
 
-        private string PrepareDestinationPath(string destinationPath)
+        private void RemapGuids(List<string> assetPaths)
         {
-            if (!destinationPath.StartsWith("Assets/"))
-            {
-                destinationPath = "Assets/" + destinationPath;
-            }
-
-            string finalPath = destinationPath;
-            if (!string.IsNullOrEmpty(_settings.folderSuffix))
-            {
-                finalPath = $"{destinationPath}{_settings.folderSuffix}";
-            }
-
-            ReadyPath(finalPath);
-            return finalPath;
-        }
-
-        private List<string> CreateTargetFoldersByType(string destPath, List<DependencyAsset> assets)
-        {
-            var createdFolders = new List<string>();
-            var requiredFolders = assets.Select(a => a.associatedType.name).Distinct();
-            foreach (var folderName in requiredFolders)
-            {
-                string path = Path.Combine(destPath, folderName);
-                if (ReadyPath(path)) createdFolders.Add(path);
-            }
-            return createdFolders;
-        }
-
-        private List<string> CreateTargetFoldersByStructure(string destPath, List<DependencyAsset> assets, string mainAssetPath)
-        {
-            var createdFolders = new List<string>();
-            foreach (var asset in assets)
-            {
-                string dirA = Path.GetDirectoryName(asset.path).Replace("\\", "/");
-                string dirMiddle = dirA.Replace(mainAssetPath, "").TrimStart('/');
-                string newDirPath = Path.Combine(destPath, dirMiddle);
-                if (ReadyPath(newDirPath)) createdFolders.Add(newDirPath);
-            }
-            return createdFolders;
-        }
-        
-        private string GetNewPathByType(DependencyAsset asset, string destPath)
-        {
-            string folder = Path.Combine(destPath, asset.associatedType.name);
-            string filename = GetFinalFileName(asset);
-            return AssetDatabase.GenerateUniqueAssetPath(Path.Combine(folder, filename));
-        }
-
-        private string GetNewPathByStructure(DependencyAsset asset, string destPath, string mainAssetPath)
-        {
-            string dirA = Path.GetDirectoryName(asset.path).Replace("\\", "/");
-            string dirMiddle = dirA.Replace(mainAssetPath, "").TrimStart('/');
-            string filename = GetFinalFileName(asset);
-            return AssetDatabase.GenerateUniqueAssetPath(Path.Combine(destPath, dirMiddle, filename));
-        }
-        
-        private string GetFinalFileName(DependencyAsset asset)
-        {
-            if (asset.action == ManageAction.Copy && !string.IsNullOrEmpty(_settings.copySuffix))
-            {
-                return $"{Path.GetFileNameWithoutExtension(asset.path)}{_settings.copySuffix}{Path.GetExtension(asset.path)}";
-            }
-            return Path.GetFileName(asset.path);
-        }
-
-        private void RemapGuids(List<string> copiedAssets)
-        {
-            if (copiedAssets.Count == 0) return;
+            if (assetPaths.Count == 0) return;
             
             try
             {
                 AssetDatabase.StartAssetEditing();
-                for (int i = 0; i < copiedAssets.Count; i++)
-                {
-                    var assetPath = copiedAssets[i];
-                    if (!assetPath.EndsWith(".asset") && !assetPath.EndsWith(".prefab") && !assetPath.EndsWith(".unity") && !assetPath.EndsWith(".mat"))
-                    {
-                        continue;
-                    }
+                string[] allGuids = _guidMap.Keys.ToArray();
+                string[] allAssetPaths = assetPaths.ToArray();
 
-                    EditorUtility.DisplayProgressBar("Remapping GUIDs", $"Processing {Path.GetFileName(assetPath)}...", (float)i / copiedAssets.Count);
+                for (int i = 0; i < allAssetPaths.Length; i++)
+                {
+                    string assetPath = allAssetPaths[i];
                     
-                    string content = File.ReadAllText(assetPath, Encoding);
-                    bool changed = false;
+                    EditorUtility.DisplayProgressBar("Remapping GUIDs", $"Processing {Path.GetFileName(assetPath)}", (float)i / allAssetPaths.Length);
+
+                    if (!assetPath.EndsWith(".asset") && !assetPath.EndsWith(".prefab") && !assetPath.EndsWith(".unity") && !assetPath.EndsWith(".mat"))
+                        continue;
                     
-                    foreach (var kvp in _guidMap)
+                    string content = File.ReadAllText(assetPath);
+                    
+                    foreach (string oldGuid in allGuids)
                     {
-                        string oldGuid = kvp.Key;
-                        string newGuid = kvp.Value;
                         if (content.Contains(oldGuid))
                         {
-                            content = content.Replace(oldGuid, newGuid);
-                            changed = true;
+                            content = content.Replace(oldGuid, _guidMap[oldGuid]);
                         }
                     }
-
-                    if (changed)
-                    {
-                        File.WriteAllText(assetPath, content, Encoding);
-                    }
+                    File.WriteAllText(assetPath, content);
                 }
             }
             finally
@@ -195,31 +130,52 @@ namespace com.neuru5278.assetorganizer.Services
                 AssetDatabase.Refresh();
             }
         }
-
-        private void CleanupEmptyFolders(IEnumerable<string> folders)
+        
+        private HashSet<string> CreateRequiredFolders(List<DependencyAsset> assets, string destinationRoot, System.Func<DependencyAsset, string, string> getNewPathFunc)
         {
-            try
+            var createdFolders = new HashSet<string>();
+            foreach (var asset in assets)
             {
-                AssetDatabase.StartAssetEditing();
-                foreach (var folderPath in folders.Distinct().Where(DirectoryIsEmpty))
+                if(asset.action == ManageAction.Skip) continue;
+                
+                string newPath = getNewPathFunc(asset, destinationRoot);
+                string newDir = Path.GetDirectoryName(newPath);
+
+                if (!string.IsNullOrEmpty(newDir) && !Directory.Exists(newDir))
                 {
-                    AssetDatabase.DeleteAsset(folderPath);
+                    Directory.CreateDirectory(newDir);
+                    createdFolders.Add(newDir);
                 }
             }
-            finally
-            {
-                AssetDatabase.StopAssetEditing();
-                AssetDatabase.Refresh();
-            }
+            return createdFolders;
         }
 
-        private static bool DirectoryIsEmpty(string path) => AssetDatabase.IsValidFolder(path) && !Directory.EnumerateFileSystemEntries(path).Any();
-        
-        private static bool ReadyPath(string folderPath)
+        private void CleanupEmptyFolders(HashSet<string> folders)
         {
-            if (Directory.Exists(folderPath)) return false;
-            Directory.CreateDirectory(folderPath);
-            return true;
+            foreach (string folder in folders.OrderByDescending(f => f.Length))
+            {
+                if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
+                {
+                    Directory.Delete(folder, false);
+                    File.Delete(folder + ".meta");
+                }
+            }
+            AssetDatabase.Refresh();
+        }
+
+        private string GetNewPathByType(DependencyAsset asset, string destinationRoot)
+        {
+            var rule = _settings.FindRuleFor(asset.type) ?? _settings.defaultRule;
+            string newDir = Path.Combine(destinationRoot, rule.folder).Replace('\\', '/');
+            return Path.Combine(newDir, asset.fileName + _settings.copySuffix + asset.extension).Replace('\\', '/');
+        }
+
+        private string GetNewPathByStructure(DependencyAsset asset, string sourceRoot, string destinationRoot)
+        {
+            string relativePath = asset.path.Replace(sourceRoot, "").TrimStart('/');
+            string newPath = Path.Combine(destinationRoot + _settings.folderSuffix, relativePath).Replace('\\', '/');
+            string newFileName = Path.GetFileNameWithoutExtension(newPath) + _settings.copySuffix + Path.GetExtension(newPath);
+            return Path.Combine(Path.GetDirectoryName(newPath) ?? "", newFileName).Replace('\\', '/');
         }
     }
 } 

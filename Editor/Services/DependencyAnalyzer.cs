@@ -18,14 +18,24 @@ namespace com.neuru5278.assetorganizer.Services
             _settings = settings;
         }
 
-        public List<DependencyAsset> RunAnalysis(Object mainAsset)
+        public List<DependencyAsset> GetDependencies(Object mainAsset, out string initialPath)
         {
-            string path = AssetDatabase.GetAssetPath(mainAsset);
-            if (string.IsNullOrEmpty(path)) return new List<DependencyAsset>();
+            initialPath = AssetDatabase.GetAssetPath(mainAsset);
+            if (string.IsNullOrEmpty(initialPath)) return new List<DependencyAsset>();
 
-            string[] dependencies = AssetDatabase.GetDependencies(path, true);
+            bool isFolder = AssetDatabase.IsValidFolder(initialPath);
+
+            string[] dependencies = isFolder 
+                ? GetAssetPathsInFolder(initialPath).ToArray()
+                : AssetDatabase.GetDependencies(initialPath, true);
             
             var dependencyAssets = dependencies.Select(p => new DependencyAsset(p)).ToList();
+
+            if (!isFolder)
+            {
+                // If the main asset is not a folder, the initial path for structure-keeping should be its directory.
+                initialPath = Path.GetDirectoryName(initialPath)?.Replace('\\', '/');
+            }
 
             ApplyActionsAndSort(dependencyAssets);
             
@@ -91,14 +101,11 @@ namespace com.neuru5278.assetorganizer.Services
             return false;
         }
 
-        private static List<string> GetAssetPathsInFolder(string path, bool deep = true)
+        private IEnumerable<string> GetAssetPathsInFolder(string folderPath)
         {
-            string[] fileEntries = Directory.GetFiles(path, "*", deep ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
-
-            return fileEntries
-                .Where(fileName => !fileName.EndsWith(".meta") && !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(fileName.Replace('\\', '/'))))
-                .Select(fileName => fileName.Replace('\\', '/'))
-                .ToList();
+            return Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories)
+                .Select(path => path.Replace('\\', '/'))
+                .Where(path => !path.EndsWith(".meta"));
         }
     }
 } 

@@ -6,7 +6,6 @@ using com.neuru5278.assetorganizer.Settings;
 using com.neuru5278.assetorganizer.UI;
 using UnityEditor;
 using UnityEngine;
-using FileUtil = UnityEditor.FileUtil;
 using Object = UnityEngine.Object;
 
 namespace com.neuru5278.assetorganizer
@@ -14,9 +13,11 @@ namespace com.neuru5278.assetorganizer
     public class AssetOrganizerWindow : EditorWindow
     {
         private AssetOrganizerSettings _settings;
+        private AssetOrganizationService _service;
         private OrganizerTabDrawer _organizerTabDrawer;
         
         private Object _mainAsset;
+        private string _mainAssetPath;
         private string _destinationPath;
         private List<DependencyAsset> _assets;
 
@@ -29,6 +30,7 @@ namespace com.neuru5278.assetorganizer
         private void OnEnable()
         {
             _settings = SettingsManager.GetSettings();
+            _service = new AssetOrganizationService(_settings);
             _organizerTabDrawer = new OrganizerTabDrawer();
         }
 
@@ -62,20 +64,19 @@ namespace com.neuru5278.assetorganizer
 
             if (userActions.GetAssets)
             {
-                GetDependencyAssets();
+                if (_mainAsset != null)
+                    _assets = _service.RunAnalysis(_mainAsset, out _mainAssetPath);
             }
 
             if (userActions.ProcessByType)
             {
-                var processor = new AssetProcessor(_settings);
-                processor.ProcessAssets(_assets, _destinationPath, false);
+                _service.RunProcessing(_assets, _mainAssetPath, _destinationPath, ProcessMode.ByType);
                 _assets = null;
             }
             
             if (userActions.ProcessByStructure)
             {
-                var processor = new AssetProcessor(_settings);
-                processor.ProcessAssets(_assets, _destinationPath, true);
+                _service.RunProcessing(_assets, _mainAssetPath, _destinationPath, ProcessMode.ByStructure);
                 _assets = null;
             }
             
@@ -83,13 +84,6 @@ namespace com.neuru5278.assetorganizer
             {
                 EditorUtility.SetDirty(_settings);
             }
-        }
-
-        private void GetDependencyAssets()
-        {
-            if (!_mainAsset) return;
-            var analyzer = new DependencyAnalyzer(_settings);
-            _assets = analyzer.RunAnalysis(_mainAsset);
         }
     }
 } 
