@@ -3,123 +3,75 @@ using System.IO;
 using com.neuru5278.assetorganizer.Data;
 using com.neuru5278.assetorganizer.Services;
 using com.neuru5278.assetorganizer.Settings;
-using com.neuru5278.assetorganizer.Utils;
+using com.neuru5278.assetorganizer.UI;
 using UnityEditor;
 using UnityEngine;
+using FileUtil = UnityEditor.FileUtil;
 using Object = UnityEngine.Object;
 
-namespace com.neuru5278.assetorganizer.UI
+namespace com.neuru5278.assetorganizer
 {
     public class AssetOrganizerWindow : EditorWindow
     {
-        // State
         private AssetOrganizerSettings _settings;
-        private AssetOrganizationService _service;
         private OrganizerTabDrawer _organizerTabDrawer;
-        private OptionsTabDrawer _optionsTabDrawer;
-
-        private int _mainToolbarIndex;
-        private readonly string[] _mainTabs = { "Organizer", "Options" };
         
         private Object _mainAsset;
-        private string _mainAssetPath;
         private string _destinationPath;
-        private List<DependencyAsset> _dependencyAssets = new List<DependencyAsset>();
-        private Vector2 _scrollPosition;
+        private List<DependencyAsset> _assets;
 
-        [MenuItem("Tools/NeuruTools/Asset Organizer", false, 36)]
-        private static void ShowWindow()
+        [MenuItem("Tools/Asset Organizer")]
+        public static void ShowWindow()
         {
-            var window = GetWindow<AssetOrganizerWindow>("Asset Organizer");
-            window.minSize = new Vector2(420, 320);
-            window.Show();
+            GetWindow<AssetOrganizerWindow>("Asset Organizer");
         }
 
         private void OnEnable()
         {
-            _settings = SettingsManager.GetSettings();
-            _service = new AssetOrganizationService(_settings);
+            _settings = AssetOrganizerSettings.LoadSettings();
             _organizerTabDrawer = new OrganizerTabDrawer();
-            _optionsTabDrawer = new OptionsTabDrawer(_settings);
         }
 
         private void OnGUI()
         {
-            if (_settings == null)
-            {
-                EditorGUILayout.HelpBox("Settings asset could not be loaded. Please check the console for errors.", MessageType.Error);
-                if(GUILayout.Button("Retry Loading Settings")) OnEnable();
-                return;
-            }
-            
-            _mainToolbarIndex = GUILayout.Toolbar(_mainToolbarIndex, _mainTabs);
-            AssetOrganizerGUI.DrawSeparator();
+            var userActions = _organizerTabDrawer.Draw(ref _mainAsset, ref _destinationPath, _settings, _assets);
 
-            using (var scrollView = new EditorGUILayout.ScrollViewScope(_scrollPosition))
+            if (userActions.MainAssetChanged)
             {
-                _scrollPosition = scrollView.scrollPosition;
-                
-                switch (_mainToolbarIndex)
+                if (_mainAsset)
                 {
-                    case 0:
-                        DrawOrganizerTab();
-                        break;
-                    case 1:
-                        _optionsTabDrawer.Draw();
-                        break;
+                    _destinationPath = AssetDatabase.GetAssetPath(_mainAsset);
+                    if (!AssetDatabase.IsValidFolder(_destinationPath))
+                    {
+                        _destinationPath = Path.GetDirectoryName(_destinationPath)?.Replace('\\', '/');
+                    }
                 }
+                _assets = null;
             }
 
-            // Save settings if they have been changed in the UI
-            if (GUI.changed)
+            if (userActions.GetAssets)
             {
-                EditorUtility.SetDirty(_settings);
+                GetDependencyAssets();
             }
-        }
 
-        private void DrawOrganizerTab()
-        {
-            // The OrganizerTabDrawer is now responsible for drawing all fields.
-            // We pass the state to it and handle the returned actions.
-            var actions = _organizerTabDrawer.Draw(ref _mainAsset, ref _destinationPath, _settings, _dependencyAssets);
+            if (userActions.ProcessByType)
+            {
+                var processor = new AssetProcessor(_settings);
+                processor.ProcessAssets(_assets, _destinationPath, false);
+            }
             
-            if(actions.MainAssetChanged) HandleMainAssetChange();
-            
-            HandleUserActions(actions);
-        }
-        
-        private void HandleMainAssetChange()
-        {
-            if (_mainAsset == null)
+            if (userActions.ProcessByStructure)
             {
-                _destinationPath = "Assets";
-                _dependencyAssets.Clear();
-            }
-            else
-            {
-                string path = AssetDatabase.GetAssetPath(_mainAsset);
-                _destinationPath = AssetDatabase.IsValidFolder(path) ? path : Path.GetDirectoryName(path);
+                var processor = new AssetProcessor(_settings);
+                processor.ProcessAssets(_assets, _destinationPath, true);
             }
         }
 
-        private void HandleUserActions(OrganizerTabDrawer.UserActions actions)
+        private void GetDependencyAssets()
         {
-            if (actions.GetAssets)
-            {
-                _dependencyAssets = _service.RunAnalysis(_mainAsset, out _mainAssetPath);
-            }
-
-            if (actions.ProcessByType)
-            {
-                _service.RunProcessing(_dependencyAssets, _mainAssetPath, _destinationPath, ProcessMode.ByType);
-                _dependencyAssets.Clear(); // Clear list after processing
-            }
-
-            if (actions.ProcessByStructure)
-            {
-                _service.RunProcessing(_dependencyAssets, _mainAssetPath, _destinationPath, ProcessMode.ByStructure);
-                _dependencyAssets.Clear(); // Clear list after processing
-            }
+            if (!_mainAsset) return;
+            var analyzer = new DependencyAnalyzer(_settings);
+            _assets = analyzer.GetDependencyAssets(_mainAsset);
         }
     }
 } 

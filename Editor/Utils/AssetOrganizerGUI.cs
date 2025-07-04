@@ -47,20 +47,25 @@ namespace com.neuru5278.assetorganizer.Utils
 
                 if (GUILayout.Button("...", GUILayout.Width(30)))
                 {
-                    string initialPath = AssetDatabase.IsValidFolder(variable) ? variable : "Assets";
-                    var newPath = EditorUtility.OpenFolderPanel(title, initialPath, string.Empty);
-                    
-                    if (!string.IsNullOrEmpty(newPath) && newPath.StartsWith(Application.dataPath))
+                    var dummyPath = EditorUtility.OpenFolderPanel(title, AssetDatabase.IsValidFolder(variable) ? variable : "Assets", string.Empty);
+                    if (string.IsNullOrEmpty(dummyPath))
+                        return variable;
+                    string newPath = FileUtil.GetProjectRelativePath(dummyPath);
+
+                    if (!newPath.StartsWith("Assets"))
                     {
-                        variable = "Assets" + newPath.Substring(Application.dataPath.Length);
+                        Debug.LogWarning("Selected path must be inside the Assets folder.");
+                        return variable;
                     }
+
+                    variable = newPath;
                 }
             }
 
             return variable;
         }
 
-        public static void DrawSeparator(int thickness = 1, int padding = 10)
+        public static void DrawSeparator(int thickness = 2, int padding = 10)
         {
             Rect r = EditorGUILayout.GetControlRect(GUILayout.Height(thickness + padding));
             r.height = thickness;

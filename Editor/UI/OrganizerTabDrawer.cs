@@ -25,7 +25,7 @@ namespace com.neuru5278.assetorganizer.UI
         {
             var actions = new UserActions();
 
-            // --- Top Input Fields ---
+            // --- Top Input Fields (Matches original DrawOrganizerTab) ---
             using (new GUILayout.HorizontalScope())
             {
                 var newMainAsset = EditorGUILayout.ObjectField("Main Asset", mainAsset, typeof(Object), false);
@@ -43,84 +43,101 @@ namespace com.neuru5278.assetorganizer.UI
                     }
                 }
             }
-            
-            settings.copySuffix = EditorGUILayout.TextField("Copy Suffix", settings.copySuffix);
+
+            using (new GUILayout.HorizontalScope())
+            {
+                settings.copySuffix = EditorGUILayout.TextField("Copy Suffix", settings.copySuffix);
+            }
             destinationPath = AssetOrganizerGUI.AssetFolderPath(destinationPath, "Destination Folder");
-            settings.folderSuffix = EditorGUILayout.TextField("Folder Suffix", settings.folderSuffix);
-            
-            // --- Asset List ---
+            using (new GUILayout.HorizontalScope())
+            {
+                settings.folderSuffix = EditorGUILayout.TextField("Folder Suffix", settings.folderSuffix);
+            }
+
+            // --- Asset List (Matches original DrawOrganizerTab) ---
             if (assets != null && assets.Count > 0)
             {
-                AssetOrganizerGUI.DrawSeparator(2, 10);
-                DrawAssetList(assets, settings);
-                AssetOrganizerGUI.DrawSeparator(2, 10);
+                AssetOrganizerGUI.DrawSeparator(4, 20);
+                DrawAssetList(assets);
                 DrawActionButtons(assets, mainAsset, actions);
             }
 
             return actions;
         }
-        
-        private void DrawAssetList(List<DependencyAsset> assets, AssetOrganizerSettings settings)
+
+        private void DrawAssetList(List<DependencyAsset> assets)
         {
-            GUILayout.Label($"Dependencies ({assets.Count}):", EditorStyles.boldLabel);
-
-            float maxPathWidth = 0f;
-            GUIStyle pathStyle = new GUIStyle(EditorStyles.label) { alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Overflow };
-            foreach (var asset in assets)
+            using (new GUILayout.VerticalScope())
             {
-                float width = pathStyle.CalcSize(new GUIContent($"| {asset.path}")).x;
-                if (width > maxPathWidth) maxPathWidth = width;
-            }
-
-            _assetListScroll = EditorGUILayout.BeginScrollView(_assetListScroll, GUILayout.ExpandHeight(true));
-
-            float visiblePathWidth = 0;
-            float pathAreaX = 0;
-
-            foreach (var asset in assets)
-            {
-                Rect fullRowRect = EditorGUILayout.GetControlRect(false, EditorGUIUtility.singleLineHeight + 4);
-                GUI.Box(fullRowRect, GUIContent.none, GUI.skin.box);
-                Rect paddedRect = new Rect(fullRowRect.x + 2, fullRowRect.y + 2, fullRowRect.width - 4, fullRowRect.height - 4);
-
-                const float actionBoxWidth = 60f;
-                const float spacing = 4f;
-                float iconWidth = paddedRect.height;
-
-                Rect iconRect = new Rect(paddedRect.x, paddedRect.y, iconWidth, paddedRect.height);
-                Rect actionBoxRect = new Rect(paddedRect.x + paddedRect.width - actionBoxWidth, paddedRect.y, actionBoxWidth, paddedRect.height);
-                Rect pathRect = new Rect(iconRect.xMax + spacing, paddedRect.y, actionBoxRect.x - (iconRect.xMax + spacing), paddedRect.height);
+                GUILayout.Label($"Dependencies ({assets.Count}):", EditorStyles.boldLabel);
                 
-                pathAreaX = pathRect.x;
-                visiblePathWidth = pathRect.width;
-
-                GUI.Label(iconRect, asset.icon);
-                asset.action = (ManageAction)EditorGUI.EnumPopup(actionBoxRect, asset.action);
-
-                GUI.BeginClip(pathRect);
-                Rect scrolledPathContentRect = new Rect(-_pathHorizontalScrollPos.x, 0, maxPathWidth, pathRect.height);
-                if (GUI.Button(scrolledPathContentRect, $"| {asset.path}", pathStyle))
+                float maxPathWidth = 0f;
+                GUIStyle pathStyleForCalc = new GUIStyle(GUI.skin.label);
+                if (assets.Count > 0)
                 {
-                    EditorGUIUtility.PingObject(asset.asset);
+                    foreach (var a in assets)
+                    {
+                        float width = pathStyleForCalc.CalcSize(new GUIContent($"| {a.path}")).x;
+                        if (width > maxPathWidth) maxPathWidth = width;
+                    }
                 }
-                GUI.EndClip();
-            }
 
-            EditorGUILayout.EndScrollView();
-            
-            if (maxPathWidth > visiblePathWidth)
-            {
-                Rect scrollbarRect = GUILayoutUtility.GetRect(visiblePathWidth, 18);
-                scrollbarRect.x = pathAreaX;
-                scrollbarRect.width = visiblePathWidth;
+                _assetListScroll = EditorGUILayout.BeginScrollView(_assetListScroll, GUILayout.ExpandHeight(true));
 
-                _pathHorizontalScrollPos.x = GUI.HorizontalScrollbar(
-                    scrollbarRect,
-                    _pathHorizontalScrollPos.x,
-                    visiblePathWidth,
-                    0,
-                    maxPathWidth
-                );
+                GUIStyle pathStyle = new GUIStyle(GUI.skin.label)
+                {
+                    alignment = TextAnchor.MiddleLeft,
+                    clipping = TextClipping.Overflow
+                };
+
+                float visiblePathWidth = 0;
+                float pathAreaX = 0;
+
+                foreach (var a in assets)
+                {
+                    Rect fullRowRect = EditorGUILayout.GetControlRect(false, EditorGUIUtility.singleLineHeight + 4);
+                    GUI.Box(fullRowRect, GUIContent.none, GUI.skin.box);
+                    Rect paddedRect = new Rect(fullRowRect.x + 2, fullRowRect.y + 2, fullRowRect.width - 4, fullRowRect.height - 4);
+
+                    const float actionBoxWidth = 60f;
+                    const float spacing = 4f;
+                    float iconWidth = paddedRect.height;
+
+                    Rect actionBoxRect = new Rect(paddedRect.x + paddedRect.width - actionBoxWidth, paddedRect.y, actionBoxWidth, paddedRect.height);
+                    Rect iconRect = new Rect(paddedRect.x, paddedRect.y, iconWidth, paddedRect.height);
+                    Rect pathRect = new Rect(iconRect.xMax + spacing, paddedRect.y, actionBoxRect.x - (iconRect.xMax + spacing), paddedRect.height);
+                    
+                    pathAreaX = pathRect.x;
+                    visiblePathWidth = pathRect.width;
+
+                    GUI.Label(iconRect, a.icon);
+                    a.action = (ManageAction)EditorGUI.EnumPopup(actionBoxRect, a.action);
+
+                    GUI.BeginClip(pathRect);
+                    Rect scrolledPathContentRect = new Rect(-_pathHorizontalScrollPos.x, 0, maxPathWidth, pathRect.height);
+                    if (GUI.Button(scrolledPathContentRect, $"| {a.path}", pathStyle))
+                    {
+                        EditorGUIUtility.PingObject(a.asset);
+                    }
+                    GUI.EndClip();
+                }
+
+                EditorGUILayout.EndScrollView();
+
+                if (maxPathWidth > visiblePathWidth)
+                {
+                    Rect scrollbarRect = EditorGUILayout.GetControlRect(false, 18);
+                    scrollbarRect.x = pathAreaX;
+                    scrollbarRect.width = visiblePathWidth;
+
+                    _pathHorizontalScrollPos.x = GUI.HorizontalScrollbar(
+                        scrollbarRect,
+                        _pathHorizontalScrollPos.x,
+                        visiblePathWidth,
+                        0,
+                        maxPathWidth
+                    );
+                }
             }
         }
         
@@ -153,7 +170,7 @@ namespace com.neuru5278.assetorganizer.UI
                         }
                     }
                 }
-                AssetOrganizerGUI.DrawSeparator(1, 2);
+                AssetOrganizerGUI.DrawSeparator(0, 2);
 
                 if (GUILayout.Button("Organize by Type"))
                 {
@@ -163,7 +180,7 @@ namespace com.neuru5278.assetorganizer.UI
                 bool isFolder = mainAsset != null && AssetDatabase.IsValidFolder(AssetDatabase.GetAssetPath(mainAsset));
                 if (isFolder)
                 {
-                    AssetOrganizerGUI.DrawSeparator(1, 2);
+                    AssetOrganizerGUI.DrawSeparator(0, 2);
                     if (GUILayout.Button("Keep Structure"))
                     {
                         actions.ProcessByStructure = true;
